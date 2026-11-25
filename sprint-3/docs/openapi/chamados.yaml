@@ -1,0 +1,130 @@
+openapi: 3.0.3
+info:
+  title: Equipe Beta - Contrato de Recebimento de Chamados
+  version: 1.0.0
+  description: >
+    Contrato proposto para registrar um chamado e encaminhá-lo ao processo
+    de roteamento. Os campos representam uma proposta baseada na arquitetura
+    descrita na Sprint 2 e devem ser validados com a implementação real.
+paths:
+  /chamados:
+    post:
+      summary: Registrar chamado para roteamento
+      operationId: registrarChamado
+      description: >
+        Recebe os dados do incidente, registra a solicitação e inicia o fluxo
+        de roteamento. O processamento pode continuar de forma assíncrona.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NovoChamado'
+            example:
+              idExterno: "LOJA-00821-2026-000145"
+              loja:
+                id: "LOJA-00821"
+                latitude: -25.5352
+                longitude: -49.2034
+              incidente:
+                categoria: "PDV"
+                descricao: "Caixa 02 não inicia após reinicialização"
+              prioridade: "alta"
+              habilidadesNecessarias:
+                - "suporte_pdv"
+                - "hardware"
+              criadoEm: "2026-10-21T18:40:00-03:00"
+      responses:
+        '202':
+          description: Chamado aceito para processamento.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChamadoAceito'
+              example:
+                chamadoId: "CH-2026-000145"
+                status: "recebido"
+                mensagem: "Chamado recebido para roteamento."
+        '400':
+          description: Dados ausentes ou inválidos.
+        '409':
+          description: Solicitação duplicada identificada pelo idExterno.
+        '422':
+          description: Dados válidos em formato, mas incompatíveis com as regras.
+components:
+  schemas:
+    NovoChamado:
+      type: object
+      required:
+        - idExterno
+        - loja
+        - incidente
+        - prioridade
+        - criadoEm
+      properties:
+        idExterno:
+          type: string
+          description: Identificador único gerado pelo sistema de origem para evitar duplicidade.
+          minLength: 1
+          maxLength: 100
+        loja:
+          $ref: '#/components/schemas/LocalLoja'
+        incidente:
+          $ref: '#/components/schemas/Incidente'
+        prioridade:
+          type: string
+          enum: [baixa, normal, alta, critica]
+          description: Prioridade inicial informada pela loja ou pelo sistema de origem.
+        habilidadesNecessarias:
+          type: array
+          description: Habilidades requeridas para resolver o incidente, quando conhecidas.
+          items:
+            type: string
+          uniqueItems: true
+        criadoEm:
+          type: string
+          format: date-time
+          description: Data e hora de criação em ISO 8601, com fuso horário.
+    LocalLoja:
+      type: object
+      required: [id, latitude, longitude]
+      properties:
+        id:
+          type: string
+          description: Identificador da loja no sistema de origem.
+        latitude:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+    Incidente:
+      type: object
+      required: [categoria, descricao]
+      properties:
+        categoria:
+          type: string
+          description: Tipo geral do incidente, usado para apoiar a triagem.
+        descricao:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        equipamentoId:
+          type: string
+          description: Identificador do equipamento afetado, se disponível.
+    ChamadoAceito:
+      type: object
+      required: [chamadoId, status, mensagem]
+      properties:
+        chamadoId:
+          type: string
+          description: Identificador interno atribuído pelo Equipe Beta.
+        status:
+          type: string
+          enum: [recebido]
+        mensagem:
+          type: string
